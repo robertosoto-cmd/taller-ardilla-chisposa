@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <!-- Metaetiqueta para asegurar que la página se vea bien en celulares y no se pueda hacer zoom -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Experiencia Vertical Interactiva</title>
+    <style>
+        /* Estilos para que la experiencia ocupe toda la pantalla sin bordes */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* Evita barras de scroll */
+            background-color: #000; /* Fondo negro por si algún video no carga */
+            font-family: sans-serif;
+            color: white;
+        }
+
+        /* Contenedor principal para los videos */
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Estilo para cada video */
+        video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* 'cover' asegura que el video llene la pantalla sin deformarse */
+            object-fit: cover;
+            display: none; /* Oculta todos los videos por defecto */
+        }
+
+        /* Clase 'active' para mostrar el video actual */
+        video.active {
+            display: block;
+        }
+        
+        /* Mensaje de carga inicial o de error */
+        #loading-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.2rem;
+            display: none; /* Oculto por defecto */
+            text-align: center;
+            padding: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="video-container" id="container">
+        <!-- 
+            IMPORTANTE: 
+            Coloca tus videos en una carpeta llamada 'videos' dentro del mismo directorio que este archivo HTML.
+            Los nombres deben ser pantalla1.mp4, pantalla2.mp4, etc.
+            Si tus videos tienen otro formato (ej. .webm), cambia la extensión en el 'src'.
+        -->
+        <video id="video1" src="videos/pantalla1.mp4" playsinline muted></video>
+        <video id="video2" src="videos/pantalla2.mp4" playsinline muted loop></video>
+        <video id="video3" src="videos/pantalla3.mp4" playsinline muted></video>
+        <video id="video4" src="videos/pantalla4.mp4" playsinline muted loop></video>
+        <video id="video5" src="videos/pantalla5.mp4" playsinline muted></video>
+        <video id="video6" src="videos/pantalla6.mp4" playsinline muted loop></video>
+        <video id="video7" src="videos/pantalla7.mp4" playsinline muted></video>
+        <video id="video8" src="videos/pantalla8.mp4" playsinline muted loop></video>
+        <video id="video9" src="videos/pantalla9.mp4" playsinline muted></video>
+        
+        <div id="loading-message">Toca para comenzar</div>
+    </div>
+
+    <script>
+        // Espera a que todo el contenido de la página se cargue
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('container');
+            const loadingMessage = document.getElementById('loading-message');
+            const totalScreens = 9;
+            const videos = [];
+
+            // Carga todos los elementos de video en un array
+            for (let i = 1; i <= totalScreens; i++) {
+                const video = document.getElementById(`video${i}`);
+                if (video) {
+                    videos.push(video);
+
+                    // --- INICIO DE LA CORRECCIÓN ---
+                    // Se añade un manejador de errores para cada video.
+                    // Esto ayudará a diagnosticar si un video no se carga correctamente.
+                    video.addEventListener('error', () => {
+                        console.error(`Error: No se pudo cargar el video '${video.src}'. Por favor, verifica lo siguiente:`);
+                        console.error(`1. Que la carpeta 'videos' exista y esté en el mismo nivel que tu archivo index.html.`);
+                        console.error(`2. Que el nombre del archivo sea exactamente '${video.src.split('/').pop()}' (mayúsculas y minúsculas importan).`);
+                        console.error(`3. Que el formato del video sea compatible con el navegador (ej. MP4).`);
+                        
+                        // Muestra un mensaje de error más claro en la pantalla.
+                        loadingMessage.textContent = `Error al cargar ${video.id}. Revisa la consola (F12) para detalles.`;
+                        loadingMessage.style.display = 'block';
+                    });
+                    // --- FIN DE LA CORRECCIÓN ---
+                }
+            }
+
+            let currentScreenIndex = 0; // El índice del video actual (empieza en 0 para video1)
+            let touchStartY = 0;
+            let touchEndY = 0;
+
+            // --- Función principal para cambiar de pantalla ---
+            function changeScreen(nextScreenIndex) {
+                // Previene errores si se intenta ir más allá del último video
+                if (nextScreenIndex >= totalScreens) {
+                    return; 
+                }
+
+                const currentVideo = videos[currentScreenIndex];
+                const nextVideo = videos[nextScreenIndex];
+
+                // Oculta el video actual y lo pausa
+                if (currentVideo) {
+                    currentVideo.classList.remove('active');
+                    currentVideo.pause();
+                }
+
+                currentScreenIndex = nextScreenIndex;
+
+                // Muestra y reproduce el siguiente video
+                if (nextVideo) {
+                    nextVideo.classList.add('active');
+                    // Ponemos el video al inicio por si se vuelve a reproducir
+                    nextVideo.currentTime = 0;
+                    
+                    const playPromise = nextVideo.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(error => {
+                            // Este error puede ocurrir por dos razones:
+                            // 1. El video no pudo cargarse (manejado por el evento 'error' de arriba).
+                            // 2. El navegador bloqueó la reproducción automática y requiere interacción del usuario.
+                            if (error.name !== 'NotSupportedError') {
+                                console.log("La reproducción automática requiere interacción del usuario. Haz clic para comenzar.");
+                                loadingMessage.style.display = 'block';
+                                container.addEventListener('click', () => {
+                                    loadingMessage.style.display = 'none';
+                                    nextVideo.play();
+                                }, { once: true });
+                            }
+                        });
+                    }
+                }
+            }
+
+            // --- Configuración de los eventos para las transiciones ---
+
+            // Transiciones automáticas cuando un video termina
+            videos[0].addEventListener('ended', () => changeScreen(1)); // Pantalla 1 -> 2
+            videos[2].addEventListener('ended', () => changeScreen(3)); // Pantalla 3 -> 4
+            videos[4].addEventListener('ended', () => changeScreen(5)); // Pantalla 5 -> 6
+            videos[6].addEventListener('ended', () => changeScreen(7)); // Pantalla 7 -> 8
+            
+            // La transición para la pantalla 9 (videos[8]) se ha eliminado.
+            // Ahora, cuando el video 9 termine, no pasará nada y se quedará en la pantalla final.
+
+
+            // --- Lógica para detectar el gesto de deslizar hacia arriba ---
+            
+            function handleSwipe() {
+                // Solo reacciona al gesto en las pantallas que están en bucle
+                const isLoopingScreen = currentScreenIndex === 1 || currentScreenIndex === 3 || currentScreenIndex === 5 || currentScreenIndex === 7;
+                if (!isLoopingScreen) return;
+
+                // Calcula la distancia del deslizamiento
+                const swipeDistance = touchStartY - touchEndY;
+
+                // Si se deslizó hacia arriba una distancia considerable (más de 50px)
+                if (swipeDistance > 50) {
+                    changeScreen(currentScreenIndex + 1);
+                }
+            }
+
+            // Eventos para pantalla táctil
+            container.addEventListener('touchstart', e => {
+                touchStartY = e.changedTouches[0].screenY;
+            }, { passive: true });
+
+            container.addEventListener('touchend', e => {
+                touchEndY = e.changedTouches[0].screenY;
+                handleSwipe();
+            }, { passive: true });
+            
+            // Eventos para el mouse (para pruebas en computadora)
+            container.addEventListener('mousedown', e => {
+                 touchStartY = e.screenY;
+            });
+             container.addEventListener('mouseup', e => {
+                 touchEndY = e.screenY;
+                 handleSwipe();
+            });
+
+
+            // --- Inicio de la experiencia ---
+            // Intenta reproducir el primer video automáticamente
+            changeScreen(0);
+        });
+    </script>
+
+</body>
+</html>
